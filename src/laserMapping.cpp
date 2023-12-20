@@ -677,6 +677,8 @@ void set_posestamp(T & out)
         out.orientation.w = q.coeffs()[3];
     }
 }
+// Record the start time
+auto start_time = std::chrono::high_resolution_clock::now();
 
 void publish_odometry(const ros::Publisher & pubOdomAftMapped)
 {
@@ -706,6 +708,28 @@ void publish_odometry(const ros::Publisher & pubOdomAftMapped)
     q.setZ(odomAftMapped.pose.pose.orientation.z);
     transform.setRotation( q );
     br.sendTransform( tf::StampedTransform( transform, odomAftMapped.header.stamp, "camera_init", "aft_mapped" ) );
+
+    // Save pose and timestamp to the file
+    std::ofstream poseFile;
+    const std::string outputFilePath = "/home/malik/catkin_ws_Point-LIO/output/pose.txt";
+    poseFile.open(outputFilePath, std::ios_base::app); // Open in append mode
+
+    // Check if the file is empty, if so, add the header line
+    if (poseFile.tellp() == 0)
+    {
+        poseFile << "# timestamp tx ty tz qx qy qz qw\n";
+    }
+
+    poseFile << std::fixed << std::setprecision(6) << odomAftMapped.header.stamp.toSec() << " "
+             << odomAftMapped.pose.pose.position.x << " "
+             << odomAftMapped.pose.pose.position.y << " "
+             << odomAftMapped.pose.pose.position.z << " "
+             << odomAftMapped.pose.pose.orientation.x << " "
+             << odomAftMapped.pose.pose.orientation.y << " "
+             << odomAftMapped.pose.pose.orientation.z << " "
+             << odomAftMapped.pose.pose.orientation.w << std::endl;
+
+    poseFile.close();
 }
 
 void publish_path(const ros::Publisher pubPath)
@@ -1361,6 +1385,11 @@ int main(int argc, char** argv)
         status = ros::ok();
         rate.sleep();
     }
+    // Record the end time
+    auto end_time = std::chrono::high_resolution_clock::now();
+    // Calculate and print the processing time
+    std::chrono::duration<double> elapsed_time = end_time - start_time;
+    std::cout << "Total processing time: " << elapsed_time.count() << " seconds" << std::endl;
     //--------------------------save map-----------------------------------
     /* 1. make sure you have enough memories
     /* 2. noted that pcd save will influence the real-time performences **/
